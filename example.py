@@ -10,14 +10,26 @@ def translate_it(text, translation_direction):
         'text': text,
         'lang': translation_direction
     }
-    response = requests.post(URL, params=params)
     try:
+        response = requests.post(URL, params=params)
         response.raise_for_status()
-        texts = response.json().get('text')
-        return ''.join(texts)
+        return response.json().get('text')
     except requests.exceptions.HTTPError as error:
         print(error)
 
+
+def detect_lang(text):
+    URL = 'https://translate.yandex.net/api/v1.5/tr.json/detect'
+    params = {
+        'key': API_KEY,
+        'text': text
+    }
+    try:
+        response = requests.post(URL, params=params)
+        response.raise_for_status()
+        return response.json().get('lang')
+    except requests.exceptions.HTTPError as error:
+        print(error)
 
 def get_langs(lang):
     URL = 'https://translate.yandex.net/api/v1.5/tr.json/getLangs'
@@ -25,8 +37,8 @@ def get_langs(lang):
         'key': API_KEY,
         'ui': lang
     }
-    response = requests.post(URL, params=params)
     try:
+        response = requests.post(URL, params=params)
         response.raise_for_status()
         return set(response.json()['langs'].keys())
     except requests.exceptions.HTTPError as error:
@@ -42,31 +54,21 @@ def make_translation_direction(from_lang='en', to_lang='ru'):
         return('en-ru')
 
 
-def translate_file(in_file_path, out_file_path, from_lang='en', to_lang='ru'):
+def translate_file(in_file_path, out_file_path, from_lang=None, to_lang='ru'):
+    with open(in_file_path, encoding='utf-8') as in_file:
+        text = in_file.readlines()
+    if from_lang is None:
+        from_lang = detect_lang(text)
     translation_direction = make_translation_direction(from_lang=from_lang, to_lang=to_lang)
-    with open(in_file_path) as in_file:
-        with open(out_file_path, 'w') as out_file:
-            for line in in_file:
-                out_file.write(translate_it(line, translation_direction))
+    with open(out_file_path, 'w', encoding='utf-8') as out_file:
+        out_file.writelines(translate_it(text, translation_direction))
 
 
 if __name__ == '__main__':
     files = [
-        {
-            'file': 'DE.txt',
-            'language': 'de'
-        },
-        {
-            'file': 'ES.txt',
-            'language': 'es'
-        },
-        {
-            'file': 'FR.txt',
-            'language': 'fr'
-        },
+        'DE.txt',
+        'ES.txt',
+        'FR.txt',
     ]
     for file in files:
-        translate_file(
-            file['file'], 
-            'translated-' + file['file'], 
-            file['language'])
+        translate_file(file, 'translated-' + file)
