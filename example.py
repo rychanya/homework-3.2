@@ -1,7 +1,7 @@
 import requests
 
 API_KEY = 'trnsl.1.1.20190712T081241Z.0309348472c8719d.0efdbc7ba1c507292080e3fbffe4427f7ce9a9f0'
-
+API_TOKEN = '' #insert your token here
 
 def translate_it(text, translation_direction):
     URL = 'https://translate.yandex.net/api/v1.5/tr.json/translate'
@@ -63,6 +63,45 @@ def translate_file(in_file_path, out_file_path, from_lang=None, to_lang='ru'):
     with open(out_file_path, 'w', encoding='utf-8') as out_file:
         out_file.writelines(translate_it(text, translation_direction))
 
+def create_dir(dir_name):
+    URL = 'https://cloud-api.yandex.net/v1/disk/resources'
+    params = {
+        'path': f'disk:/{dir_name}',
+    }
+    headers = {
+        'Authorization': API_TOKEN
+    }
+    response = requests.put(URL, params=params, headers=headers)
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as error:
+        if response.status_code == 409:
+            print('Dir aleredy exists')
+            return
+        print(error)
+
+def get_upload_link(file_name):
+    URL = 'https://cloud-api.yandex.net/v1/disk/resources/upload'
+    params = {
+        'path': f'disk:/foo/{file_name}',
+        'overwrite': True
+    }
+    headers = {
+        'Authorization': API_TOKEN
+    }
+    response = requests.get(URL, params=params, headers=headers)
+    try:
+        response.raise_for_status()
+        return response.json()['href']
+    except requests.exceptions.HTTPError as error:
+        print(error)
+
+def upload_to_disk(url, data):
+    response = requests.put(url, data=data)
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as error:
+        print(error)
 
 if __name__ == '__main__':
     files = [
@@ -70,5 +109,12 @@ if __name__ == '__main__':
         'ES.txt',
         'FR.txt',
     ]
+    create_dir('foo')
+   
     for file in files:
-        translate_file(file, 'translated-' + file)
+        new_path = f'translated-{file}'
+        translate_file(file, new_path)
+        url = get_upload_link(new_path)
+        with open(new_path, 'rb') as uplod_file:
+            upload_to_disk(url, uplod_file)
+
